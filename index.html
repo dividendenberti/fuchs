@@ -664,11 +664,12 @@
           formData.append('bemerkung', remarkText);
         }
 
-        // Prompt-Daten hinzufügen
+        // Prompt-Daten hinzufügen (inkl. llm Feld)
         if (selectedPrompt) {
           formData.append('prompt_title', selectedPrompt.Title);
           formData.append('prompt_kurzbezeichnung', selectedPrompt.kurzbezeichnung);
           formData.append('prompt_text', selectedPrompt.prompt);
+          formData.append('prompt_llm', selectedPrompt.llm);
         }
 
         const response = await fetch('https://n8n.fuchs-versicherung.at/webhook/vg2', {

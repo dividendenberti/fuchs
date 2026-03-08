@@ -250,12 +250,18 @@
     tbody tr {
       border-bottom: 1px solid var(--border);
       background: var(--surface);
-      transition: background 0.15s;
+      transition: background 0.15s, opacity 0.3s;
       animation: fadeIn 0.35s ease both;
     }
 
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--surface2); }
+
+    tbody tr.deleting-row {
+      opacity: 0;
+      transform: translateX(20px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
@@ -347,6 +353,122 @@
     .file-eml        { background: rgba(106,159,216,0.06); border-color: rgba(106,159,216,0.15); color: var(--sonstiges); }
     .file-eml:hover  { background: rgba(106,159,216,0.14); border-color: rgba(106,159,216,0.35); }
 
+    /* Delete button */
+    .delete-btn {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 7px;
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s;
+    }
+
+    .delete-btn:hover {
+      border-color: rgba(220,60,60,0.4);
+      background: rgba(220,60,60,0.08);
+      color: #e05555;
+    }
+
+    .delete-btn.deleting {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .delete-btn.deleting svg {
+      animation: spin 0.8s linear infinite;
+    }
+
+    /* Confirm overlay */
+    .confirm-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(5px);
+      animation: fadeIn 0.15s ease;
+    }
+
+    .confirm-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px 34px;
+      max-width: 400px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 30px 70px rgba(0,0,0,0.5);
+      animation: slideUp 0.2s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .confirm-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      background: rgba(220,60,60,0.1);
+      border: 1px solid rgba(220,60,60,0.25);
+      display: flex; align-items: center; justify-content: center;
+      color: #e05555;
+    }
+
+    .confirm-box h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 19px;
+      font-weight: 600;
+    }
+
+    .confirm-box p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    .confirm-box p strong { color: var(--text); }
+
+    .confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    .btn-cancel {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+
+    .btn-cancel:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-delete-confirm {
+      padding: 9px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(220,60,60,0.4);
+      background: rgba(220,60,60,0.1);
+      color: #e05555;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: flex; align-items: center; gap: 7px;
+    }
+
+    .btn-delete-confirm:hover { background: rgba(220,60,60,0.2); border-color: rgba(220,60,60,0.6); }
+
     .state-msg {
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
@@ -436,9 +558,11 @@
 </main>
 
 <script>
-  const WEBHOOK     = 'https://n8n.fuchs-versicherung.at/webhook/b5ae6d69-0624-4ea0-8bb4-a58e6a8a47fb';
-  const NOCODB_BASE = 'https://nocodb.fuchs-versicherung.at/';
-  const SHOW_MIMES  = ['application/pdf', 'message/rfc822'];
+  const WEBHOOK        = 'https://n8n.fuchs-versicherung.at/webhook/b5ae6d69-0624-4ea0-8bb4-a58e6a8a47fb';
+  const DELETE_WEBHOOK = 'https://n8n.fuchs-versicherung.at/webhook/fe28dab0-f75f-43c7-9511-654fb3cb8cbf';
+  const NOCODB_BASE    = 'https://nocodb.fuchs-versicherung.at/';
+  const SHOW_MIMES     = ['application/pdf', 'message/rfc822'];
+  const AUTH_HEADER    = 'Bearer wert1234';
 
   let allData = [];
 
@@ -451,7 +575,6 @@
     localStorage.setItem('theme', isLight ? 'light' : 'dark');
   }
 
-  // Restore saved theme
   if (localStorage.getItem('theme') === 'light') {
     document.documentElement.classList.add('light');
     document.addEventListener('DOMContentLoaded', () => {
@@ -470,10 +593,8 @@
 
     try {
       const res = await fetch(WEBHOOK, {
-		headers: {
-			'Authorization': 'Bearer wert1234'
-		}
-	});
+        headers: { 'Authorization': AUTH_HEADER }
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       allData = Array.isArray(json) ? json : [json];
@@ -488,7 +609,98 @@
     }
   }
 
-  // Sort "februar 2026" style titles chronologically
+  // ── Delete flow ──────────────────────────────────────────────
+  function confirmDelete(id, anbieter, title) {
+    // Remove any existing overlay
+    const existing = document.getElementById('confirm-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'confirm-overlay';
+    overlay.innerHTML = `
+      <div class="confirm-box">
+        <div class="confirm-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </div>
+        <h3>Eintrag löschen?</h3>
+        <p>Soll der Eintrag <strong>${cap(anbieter)} – ${cap(title)}</strong> (ID ${id}) unwiderruflich gelöscht werden?</p>
+        <div class="confirm-actions">
+          <button class="btn-cancel" onclick="closeConfirm()">Abbrechen</button>
+          <button class="btn-delete-confirm" onclick="deleteEntry(${id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            </svg>
+            Löschen
+          </button>
+        </div>
+      </div>`;
+
+    // Click outside to cancel
+    overlay.addEventListener('click', e => { if (e.target === overlay) closeConfirm(); });
+    document.body.appendChild(overlay);
+  }
+
+  function closeConfirm() {
+    const overlay = document.getElementById('confirm-overlay');
+    if (overlay) overlay.remove();
+  }
+
+  async function deleteEntry(id) {
+    closeConfirm();
+
+    // Find and animate the row
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    const btn = row ? row.querySelector('.delete-btn') : null;
+    if (btn) {
+      btn.classList.add('deleting');
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+    }
+
+    try {
+      const res = await fetch(DELETE_WEBHOOK, {
+        method: 'POST',
+        headers: {
+          'Authorization': AUTH_HEADER,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      // Animate row out, then remove from data & re-render
+      if (row) {
+        row.classList.add('deleting-row');
+        await new Promise(r => setTimeout(r, 380));
+      }
+
+      allData = allData.filter(d => d.Id !== id);
+      buildFilters();
+      applyFilters();
+
+    } catch (e) {
+      alert(`Fehler beim Löschen: ${e.message}`);
+      if (btn) {
+        btn.classList.remove('deleting');
+        btn.innerHTML = trashIcon();
+      }
+    }
+  }
+
+  function trashIcon() {
+    return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <path d="M10 11v6"/><path d="M14 11v6"/>
+      <path d="M9 6V4h6v2"/>
+    </svg>`;
+  }
+  // ─────────────────────────────────────────────────────────────
+
   function titleToSort(t) {
     const mo = {januar:1,februar:2,'märz':3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
     if (!t) return 0;
@@ -593,7 +805,7 @@
       const id = `d${i}`;
       const tc = row.Typ === 'Aktion' ? 'badge-aktion' : row.Typ === 'Angebot' ? 'badge-angebot' : 'badge-sonstiges';
       return `
-      <tr style="animation-delay:${i*40}ms">
+      <tr style="animation-delay:${i*40}ms" data-id="${row.Id}">
         <td class="date-cell">${cap(row.Title || '–')}</td>
         <td><span class="badge ${tc}">${row.Typ||'–'}</span></td>
         <td>
@@ -607,6 +819,12 @@
           <button class="expand-btn" onclick="toggle('${id}',this)">Mehr anzeigen</button>
         </td>
         <td>${renderFiles(row)}</td>
+        <td style="width:48px;text-align:center">
+          <button class="delete-btn" title="Eintrag löschen"
+            onclick="confirmDelete(${row.Id}, '${(row.Anbieter||'').replace(/'/g,"\\'")}', '${(row.Title||'').replace(/'/g,"\\'")}')">
+            ${trashIcon()}
+          </button>
+        </td>
       </tr>`;
     }).join('');
 
@@ -614,7 +832,7 @@
       <div class="table-wrap">
         <table>
           <thead><tr>
-            <th>Datum</th><th>Typ</th><th>Unternehmen</th><th>Beschreibung</th><th>Anhänge</th>
+            <th>Datum</th><th>Typ</th><th>Unternehmen</th><th>Beschreibung</th><th>Anhänge</th><th></th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>

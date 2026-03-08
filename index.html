@@ -3,308 +3,557 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tools – FUCHS-Versicherung</title>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <title>snake.exe</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #eef2f7;
-      --surface: #ffffff;
-      --surface2: #f0f4f9;
-      --border: #d0dae8;
-      --accent: #2e86de;
-      --accent-dark: #1a6bbf;
-      --accent-light: #e8f1fc;
-      --text: #1a2533;
-      --text-muted: #6b7f96;
-      --radius: 16px;
-      --shadow: 0 4px 24px rgba(46,134,222,0.10), 0 1px 4px rgba(0,0,0,0.06);
-      --shadow-hover: 0 12px 40px rgba(46,134,222,0.18), 0 2px 8px rgba(0,0,0,0.08);
+      --green: #00ff41;
+      --green-dim: #00aa2a;
+      --green-dark: #003b0f;
+      --green-glow: rgba(0,255,65,0.35);
+      --bg: #020c04;
+      --surface: #050f06;
+      --text: #00ff41;
+      --text-dim: #00882a;
     }
 
-    body {
-      font-family: 'DM Sans', sans-serif;
+    html, body {
+      height: 100%;
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px 24px;
+      font-family: 'Share Tech Mono', monospace;
+      overflow-x: hidden;
     }
 
-    body::before {
+    /* Scanline overlay */
+    body::after {
       content: '';
       position: fixed;
       inset: 0;
-      background:
-        radial-gradient(ellipse 70% 50% at 15% 10%, rgba(46,134,222,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 85% 85%, rgba(46,134,222,0.06) 0%, transparent 55%);
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
       pointer-events: none;
-      z-index: 0;
+      z-index: 1000;
     }
 
-    .wrapper {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 960px;
+    /* CRT flicker */
+    @keyframes flicker {
+      0%,100% { opacity: 1; }
+      92% { opacity: 1; }
+      93% { opacity: 0.85; }
+      94% { opacity: 1; }
+      96% { opacity: 0.9; }
+      97% { opacity: 1; }
     }
+    body { animation: flicker 8s infinite; }
 
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 56px;
-    }
-
-    .header-eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--accent-light);
-      border: 1px solid rgba(46,134,222,0.2);
-      border-radius: 100px;
-      padding: 5px 14px;
-      font-size: 11px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 1.4px;
-      color: var(--accent);
-      margin-bottom: 18px;
-    }
-
-    .header-eyebrow::before {
+    /* Grain texture */
+    body::before {
       content: '';
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
+      position: fixed;
+      inset: -50%;
+      width: 200%; height: 200%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.4;
     }
 
-    .header h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(30px, 5vw, 48px);
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      line-height: 1.1;
-      color: var(--text);
+    .terminal {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
     }
 
-    .header h1 span {
-      color: var(--accent);
+    /* Boot header */
+    .boot {
+      margin-bottom: 40px;
+      border: 1px solid var(--green-dim);
+      padding: 20px 24px;
+      position: relative;
+      box-shadow: 0 0 20px var(--green-glow), inset 0 0 20px rgba(0,255,65,0.03);
     }
 
-    .header p {
-      margin-top: 12px;
-      color: var(--text-muted);
-      font-size: 15px;
-      font-weight: 300;
+    .boot::before {
+      content: '[ SYSTEM TERMINAL v2.4.1 ]';
+      position: absolute;
+      top: -10px; left: 20px;
+      background: var(--bg);
+      padding: 0 8px;
+      font-size: 11px;
+      color: var(--green-dim);
+      letter-spacing: 2px;
     }
 
-    /* Grid */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 24px;
+    .prompt-line {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.9;
     }
 
-    @media (max-width: 700px) {
-      .grid { grid-template-columns: 1fr; }
+    .prompt-line .p { color: var(--green); }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: var(--green);
+      vertical-align: middle;
+      margin-left: 3px;
+      animation: blink 1s step-end infinite;
     }
 
-    /* Card */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 36px 28px 32px;
+    /* GitHub section */
+    .section {
+      margin-bottom: 36px;
+    }
+
+    .section-title {
+      font-family: 'VT323', monospace;
+      font-size: 28px;
+      color: var(--green);
+      text-shadow: 0 0 12px var(--green-glow);
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    .section-title::before { content: '> '; color: var(--green-dim); }
+
+    .github-card {
+      border: 1px solid var(--green-dim);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
       text-decoration: none;
       color: inherit;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0;
-      box-shadow: var(--shadow);
-      transition: transform 0.22s cubic-bezier(.22,1,.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
+      transition: all 0.2s;
       position: relative;
       overflow: hidden;
     }
 
-    .card::after {
+    .github-card::before {
       content: '';
       position: absolute;
       inset: 0;
-      border-radius: var(--radius);
-      border: 2px solid transparent;
-      transition: border-color 0.22s ease;
-      pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(0,255,65,0.04), transparent);
+      transform: translateX(-100%);
+      transition: transform 0.5s;
     }
 
-    .card:hover {
-      transform: translateY(-6px);
-      box-shadow: var(--shadow-hover);
-      border-color: rgba(46,134,222,0.3);
+    .github-card:hover { 
+      border-color: var(--green);
+      box-shadow: 0 0 18px var(--green-glow);
     }
 
-    .card:hover::after {
-      border-color: rgba(46,134,222,0.15);
-    }
+    .github-card:hover::before { transform: translateX(100%); }
 
-    .card-icon {
-      width: 52px; height: 52px;
-      border-radius: 13px;
-      background: var(--accent-light);
-      border: 1px solid rgba(46,134,222,0.2);
+    .gh-icon {
+      flex-shrink: 0;
+      width: 48px; height: 48px;
+      border: 1px solid var(--green-dim);
+      border-radius: 4px;
       display: flex; align-items: center; justify-content: center;
-      margin-bottom: 22px;
-      color: var(--accent);
-      transition: background 0.2s, transform 0.2s;
+      color: var(--green);
     }
 
-    .card:hover .card-icon {
-      background: var(--accent);
-      color: #fff;
-      transform: scale(1.08);
+    .gh-info { flex: 1; }
+
+    .gh-name {
+      font-family: 'VT323', monospace;
+      font-size: 22px;
+      color: var(--green);
+      text-shadow: 0 0 8px var(--green-glow);
     }
 
-    .card-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 19px;
-      font-weight: 600;
-      color: var(--text);
-      line-height: 1.25;
-      margin-bottom: 10px;
+    .gh-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 3px;
+      letter-spacing: 0.5px;
     }
 
-    .card-desc {
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.65;
-      font-weight: 300;
-      flex-grow: 1;
+    .gh-arrow {
+      color: var(--green-dim);
+      font-size: 20px;
+      transition: transform 0.2s, color 0.2s;
     }
 
-    .card-arrow {
-      margin-top: 24px;
+    .github-card:hover .gh-arrow { transform: translateX(5px); color: var(--green); }
+
+    .info-line {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 10px;
+      padding-left: 4px;
+    }
+
+    .info-line::before { content: '# '; }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px dashed var(--green-dark);
+      margin: 32px 0;
+    }
+
+    /* SNAKE */
+    .game-wrap {
+      border: 1px solid var(--green-dim);
+      padding: 0;
+      position: relative;
+      box-shadow: 0 0 24px var(--green-glow);
+    }
+
+    .game-header {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--green-dark);
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
       font-size: 12px;
-      font-weight: 500;
-      color: var(--accent);
-      opacity: 0;
-      transform: translateX(-6px);
-      transition: opacity 0.2s, transform 0.2s;
+      color: var(--text-dim);
+      background: rgba(0,255,65,0.02);
     }
 
-    .card:hover .card-arrow {
-      opacity: 1;
-      transform: translateX(0);
+    .game-header span { color: var(--green); }
+
+    #gameCanvas {
+      display: block;
+      background: var(--surface);
+      image-rendering: pixelated;
     }
 
-    /* Footer */
-    .footer {
-      text-align: center;
-      margin-top: 48px;
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 300;
+    .game-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--green-dark);
+      font-size: 11px;
+      color: var(--text-dim);
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
     }
 
-    /* Stagger animation */
-    .card {
-      animation: cardIn 0.5s cubic-bezier(.22,1,.36,1) both;
-    }
-    .card:nth-child(1) { animation-delay: 0.05s; }
-    .card:nth-child(2) { animation-delay: 0.12s; }
-    .card:nth-child(3) { animation-delay: 0.19s; }
-
-    @keyframes cardIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .game-footer kbd {
+      display: inline-block;
+      border: 1px solid var(--green-dim);
+      padding: 1px 6px;
+      border-radius: 2px;
+      color: var(--green);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
     }
 
-    .header {
-      animation: fadeDown 0.5s ease both;
+    /* Overlay */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2,12,4,0.88);
+      gap: 12px;
+      z-index: 10;
     }
 
-    @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-12px); }
-      to   { opacity: 1; transform: translateY(0); }
+    .overlay-title {
+      font-family: 'VT323', monospace;
+      font-size: 42px;
+      color: var(--green);
+      text-shadow: 0 0 20px var(--green-glow);
+      letter-spacing: 2px;
     }
+
+    .overlay-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .overlay-score {
+      font-family: 'VT323', monospace;
+      font-size: 26px;
+      color: var(--green-dim);
+    }
+
+    .start-btn {
+      margin-top: 8px;
+      padding: 10px 28px;
+      border: 1px solid var(--green);
+      background: transparent;
+      color: var(--green);
+      font-family: 'VT323', monospace;
+      font-size: 22px;
+      cursor: pointer;
+      letter-spacing: 2px;
+      transition: all 0.2s;
+      text-shadow: 0 0 8px var(--green-glow);
+      box-shadow: 0 0 12px var(--green-glow);
+    }
+
+    .start-btn:hover {
+      background: rgba(0,255,65,0.1);
+      box-shadow: 0 0 22px var(--green-glow);
+    }
+
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    .terminal { animation: fadeIn 0.6s ease; }
+
+    /* Mobile touch controls */
+    .touch-controls {
+      display: none;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 4px;
+      justify-content: center;
+      padding: 12px;
+      border-top: 1px solid var(--green-dark);
+    }
+
+    @media (max-width: 600px) {
+      .touch-controls { display: grid; }
+      #gameCanvas { width: 100%; height: auto; }
+    }
+
+    .tc-btn {
+      border: 1px solid var(--green-dim);
+      background: transparent;
+      color: var(--green);
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .tc-btn:active { background: rgba(0,255,65,0.15); }
+    .tc-up    { grid-column: 2; grid-row: 1; }
+    .tc-left  { grid-column: 1; grid-row: 2; }
+    .tc-down  { grid-column: 2; grid-row: 2; }
+    .tc-right { grid-column: 3; grid-row: 2; }
   </style>
 </head>
 <body>
+<div class="terminal">
 
-<div class="wrapper">
-
-  <div class="header">
-    <div class="header-eyebrow">Versicherungspartner</div>
-    <h1>Tools für <span>FUCHS</span>-Versicherung</h1>
-    <p>Interne Werkzeuge & Übersichten auf einen Blick</p>
+  <!-- Boot prompt -->
+  <div class="boot">
+    <div class="prompt-line"><span class="p">root@terminal:~$</span> cat /etc/motd</div>
+    <div class="prompt-line" style="margin-top:6px;color:var(--green)">Willkommen. Dieses Terminal ist nur zu Unterhaltungszwecken.</div>
+    <div class="prompt-line"><span class="p">root@terminal:~$</span> ls -la /home/user/<span class="cursor"></span></div>
   </div>
 
-  <div class="grid">
-
-    <!-- Kachel 1 -->
-    <a class="card" href="vg2.html">
-      <div class="card-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M9 17H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v3"/>
-          <path d="M13 21h-2a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/>
-          <path d="m16 19 2 2 4-4"/>
+  <!-- GitHub -->
+  <div class="section">
+    <div class="section-title">GITHUB_PROFIL</div>
+    <a class="github-card" href="https://github.com" target="_blank">
+      <div class="gh-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/>
         </svg>
       </div>
-      <div class="card-title">Versicherungsvergleich</div>
-      <div class="card-desc">PDFs mehrerer Versicherungen hochladen und automatisch vergleichen lassen.</div>
-      <div class="card-arrow">
-        Öffnen
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      <div class="gh-info">
+        <div class="gh-name">github.com</div>
+        <div class="gh-desc">Hier könnte dein Profil stehen — zur Gaude natürlich.</div>
       </div>
+      <div class="gh-arrow">→</div>
     </a>
-
-    <!-- Kachel 2 -->
-    <a class="card" href="angebote.html">
-      <div class="card-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <path d="M16 10a4 4 0 0 1-8 0"/>
-        </svg>
-      </div>
-      <div class="card-title">Aktionen & Angebote</div>
-      <div class="card-desc">Aktuelle Aktionen und Angebote der Versicherungspartner in der Übersicht.</div>
-      <div class="card-arrow">
-        Öffnen
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </div>
-    </a>
-
-    <!-- Kachel 3 -->
-    <a class="card" href="ocr.html">
-      <div class="card-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-      </div>
-      <div class="card-title">PDF OCR Scan to Clean PDF</div>
-      <div class="card-desc">Gescannte PDFs per OCR erkennen und in durchsuchbare, saubere PDFs umwandeln.</div>
-      <div class="card-arrow">
-        Öffnen
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-      </div>
-    </a>
-
+    <div class="info-line">Kein echter Inhalt. Nur ein Link. Zum Spaß. Weiterklicken.</div>
   </div>
 
-  <div class="footer">© FUCHS-Versicherung · Interne Tools</div>
+  <hr class="divider">
+
+  <!-- Snake -->
+  <div class="section">
+    <div class="section-title">SNAKE.EXE</div>
+    <div class="game-wrap">
+      <div class="game-header">
+        <span>snake_game_v1.0</span>
+        <div>SCORE: <span id="scoreDisplay">0</span> &nbsp;|&nbsp; HIGH: <span id="highDisplay">0</span></div>
+      </div>
+
+      <div style="position:relative">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div class="overlay" id="overlay">
+          <div class="overlay-title" id="overlayTitle">SNAKE.EXE</div>
+          <div class="overlay-sub" id="overlaySub">Bereit zum Spielen?</div>
+          <div class="overlay-score" id="overlayScore"></div>
+          <button class="start-btn" id="startBtn" onclick="startGame()">[ START ]</button>
+        </div>
+      </div>
+
+      <div class="game-footer">
+        <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> Steuern</span>
+        <span><kbd>P</kbd> Pause</span>
+        <span><kbd>R</kbd> Neustart</span>
+      </div>
+
+      <div class="touch-controls">
+        <button class="tc-btn tc-up"    onclick="setDir(0,-1)">▲</button>
+        <button class="tc-btn tc-left"  onclick="setDir(-1,0)">◄</button>
+        <button class="tc-btn tc-down"  onclick="setDir(0,1)">▼</button>
+        <button class="tc-btn tc-right" onclick="setDir(1,0)">►</button>
+      </div>
+    </div>
+  </div>
 
 </div>
 
+<script>
+  const canvas  = document.getElementById('gameCanvas');
+  const ctx     = canvas.getContext('2d');
+  const COLS    = 20, ROWS = 20;
+  const CELL    = canvas.width / COLS;
+  const GREEN   = '#00ff41';
+  const GREENDIM= '#00882a';
+  const GREENBG = '#050f06';
+  const RED     = '#ff4141';
+
+  let snake, dir, nextDir, food, score, highScore = 0, gameLoop, paused, running;
+
+  function startGame() {
+    document.getElementById('overlay').style.display = 'none';
+    snake   = [{x:10, y:10}, {x:9,y:10}, {x:8,y:10}];
+    dir     = {x:1, y:0};
+    nextDir = {x:1, y:0};
+    score   = 0;
+    paused  = false;
+    running = true;
+    placeFood();
+    updateScore();
+    clearInterval(gameLoop);
+    gameLoop = setInterval(tick, 120);
+  }
+
+  function setDir(x, y) {
+    // Prevent 180 flip
+    if (x !== 0 && dir.x !== 0) return;
+    if (y !== 0 && dir.y !== 0) return;
+    nextDir = {x, y};
+  }
+
+  function placeFood() {
+    let pos;
+    do {
+      pos = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)};
+    } while (snake.some(s => s.x===pos.x && s.y===pos.y));
+    food = pos;
+  }
+
+  function tick() {
+    if (paused || !running) return;
+    dir = nextDir;
+    const head = {x: snake[0].x + dir.x, y: snake[0].y + dir.y};
+
+    // Wall collision
+    if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) return gameOver();
+    // Self collision
+    if (snake.some(s => s.x===head.x && s.y===head.y)) return gameOver();
+
+    snake.unshift(head);
+
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      updateScore();
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    draw();
+  }
+
+  function draw() {
+    // Background grid
+    ctx.fillStyle = GREENBG;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Grid dots
+    ctx.fillStyle = 'rgba(0,255,65,0.04)';
+    for (let x = 0; x < COLS; x++)
+      for (let y = 0; y < ROWS; y++)
+        ctx.fillRect(x*CELL + CELL/2 - 1, y*CELL + CELL/2 - 1, 2, 2);
+
+    // Food — pulsing effect via time
+    const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 200);
+    ctx.shadowBlur = 14 * pulse;
+    ctx.shadowColor = RED;
+    ctx.fillStyle = RED;
+    ctx.fillRect(food.x*CELL+2, food.y*CELL+2, CELL-4, CELL-4);
+    ctx.shadowBlur = 0;
+
+    // Snake
+    snake.forEach((seg, i) => {
+      const ratio = 1 - (i / snake.length) * 0.6;
+      ctx.fillStyle = i === 0 ? GREEN : `rgba(0,${Math.floor(200*ratio)},${Math.floor(60*ratio)},1)`;
+      if (i === 0) {
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = GREEN;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+      const pad = i === 0 ? 1 : 2;
+      ctx.fillRect(seg.x*CELL+pad, seg.y*CELL+pad, CELL-pad*2, CELL-pad*2);
+    });
+    ctx.shadowBlur = 0;
+  }
+
+  function gameOver() {
+    running = false;
+    clearInterval(gameLoop);
+    if (score > highScore) { highScore = score; document.getElementById('highDisplay').textContent = highScore; }
+
+    // Flash red
+    let flashes = 0;
+    const flashInterval = setInterval(() => {
+      ctx.fillStyle = `rgba(255,65,65,${flashes%2===0?0.12:0})`;
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      if (++flashes >= 6) {
+        clearInterval(flashInterval);
+        showOverlay('GAME OVER', `Endstand: ${score} Punkte`, '[ NOCHMAL ]');
+      }
+    }, 80);
+  }
+
+  function showOverlay(title, sub, btn) {
+    document.getElementById('overlayTitle').textContent = title;
+    document.getElementById('overlaySub').textContent   = sub;
+    document.getElementById('overlayScore').textContent = score > 0 ? `SCORE: ${score}` : '';
+    document.getElementById('startBtn').textContent     = btn;
+    document.getElementById('overlay').style.display    = 'flex';
+  }
+
+  function updateScore() {
+    document.getElementById('scoreDisplay').textContent = score;
+  }
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    switch(e.key) {
+      case 'ArrowUp':    e.preventDefault(); setDir(0,-1); break;
+      case 'ArrowDown':  e.preventDefault(); setDir(0,1);  break;
+      case 'ArrowLeft':  e.preventDefault(); setDir(-1,0); break;
+      case 'ArrowRight': e.preventDefault(); setDir(1,0);  break;
+      case 'p': case 'P':
+        if (!running) break;
+        paused = !paused;
+        if (paused) showOverlay('PAUSE', 'P zum Weiterspielen', '[ WEITER ]');
+        else document.getElementById('overlay').style.display = 'none';
+        break;
+      case 'r': case 'R': startGame(); break;
+    }
+  });
+
+  // Initial draw
+  ctx.fillStyle = GREENBG;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+</script>
 </body>
 </html>
